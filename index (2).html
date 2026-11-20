@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>宗心会｜停止応答の通信試験</title>
+<style>
+body{max-width:40rem;margin:auto;padding:2rem 1rem;font:18px/1.6 system-ui,sans-serif;color:#36232b}h1{font-size:1.6rem}input,button{box-sizing:border-box;width:100%;font:inherit;padding:.6rem;margin:.4rem 0}button{background:#762d43;color:white;border:0;border-radius:.4rem}button:disabled{opacity:.55}pre{white-space:pre-wrap;overflow-wrap:anywhere}
+</style>
+<h1>宗心会｜停止応答の通信試験</h1>
+<label for="endpoint">役員試験用GASのウェブアプリURL（末尾 /exec）</label>
+<input id="endpoint" type="url" autocomplete="off" spellcheck="false">
+<button id="run" type="button">停止応答を確認</button>
+<pre id="result" role="status"></pre>
+<script>
+const endpoint = document.querySelector('#endpoint');
+const run = document.querySelector('#run');
+const result = document.querySelector('#result');
+run.onclick = async () => {
+  const target = endpoint.value.trim();
+  if (location.protocol !== 'https:') {
+    result.textContent = 'GitHub PagesのHTTPSページから実行してください。';
+    return;
+  }
+  if (!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(target)) {
+    result.textContent = '試験用ウェブアプリの /exec URLを入力してください。';
+    return;
+  }
+  run.disabled = true;
+  result.textContent = '通信中…';
+  const report = {pass:false, status:null, redirected:null, host:null, jsonReadable:false, code:null};
+  try {
+    const response = await fetch(target, {
+      method:'POST', mode:'cors', credentials:'omit', redirect:'follow',
+      body:new URLSearchParams({action:'compare'})
+    });
+    report.status = response.status;
+    report.redirected = response.redirected;
+    report.host = new URL(response.url).hostname;
+    const data = await response.json();
+    report.jsonReadable = true;
+    report.code = data?.code === 'STOPPED' ? 'STOPPED' : '予期しない応答';
+    report.pass = report.status === 200 && report.redirected &&
+      report.host === 'script.googleusercontent.com' && report.code === 'STOPPED' &&
+      data.ok === false && data.build === 'officers-local';
+  } catch (error) {
+    report.error = error.name + ': ' + error.message.split(target).join('[試験URL]');
+  } finally {
+    result.textContent = JSON.stringify(report, null, 2);
+    run.disabled = false;
+  }
+};
+</script>
+</html>
